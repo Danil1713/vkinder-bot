@@ -15,6 +15,7 @@ class VKClient(object):
         url = f"{self.base_url}{method}"
 
         response = requests.get(url, params=params)
+        print(response.json())
 
         data = response.json()
 
@@ -27,6 +28,7 @@ class VKClient(object):
         }
 
         data = self._get("users.get", params)
+        print(data)
 
         if not data or len(data) == 0:
             print(f"Пользователь с ID {user_id} не найден.")
@@ -39,7 +41,8 @@ class VKClient(object):
             'last_name': user_data.get('last_name'),
             'domain': user_data.get('domain'),
             'sex': user_data.get('sex'),
-            'city': user_data.get('city', {}).get('id') if user_data.get('city') else None,
+            'city_id': user_data.get('city', {}).get('id') if user_data.get('city') else None,
+            'city_title': user_data.get('city', {}).get('title') if user_data.get('city') else None,
             'age': self._calculate_age(user_data.get('bdate'))
         }
 
