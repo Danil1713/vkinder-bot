@@ -1,14 +1,6 @@
-import os
 from pprint import pprint
 import vk_api
-from dotenv import load_dotenv
 from config import Config
-
-
-# group_token: str = os.getenv('VK_TOKEN')
-# access_token: str = os.getenv('SEARCH_TOKEN')
-# user_id: int = int(os.getenv('USER_ID'))
-
 
 class VK_client:
 

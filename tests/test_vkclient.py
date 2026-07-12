@@ -1,10 +1,7 @@
-import os
 from unittest.mock import Mock, patch
 import pytest
 from datetime import datetime
-
 from vk_api_client.vk_client import VK_client
-from config import Config
 
 
 @pytest.fixture
