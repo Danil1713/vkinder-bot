@@ -7,16 +7,16 @@ import json
 import vk_api
 from vk_api.longpoll import VkLongPoll, VkEventType
 from random import randrange
-from config import GROUP_TOKEN
-from vk_client.vk_client import VKClient
+from config import Config
+from vk_api_client.vk_client import VK_client
 
-vk_session = vk_api.VkApi(token=GROUP_TOKEN)
+vk_session = vk_api.VkApi(token=Config.group_token)
 
 longpoll = VkLongPoll(vk_session)
 
 vk = vk_session.get_api()
 
-vk_client = VKClient()
+vk_client = VK_client()
 
 user_states = {}
 
