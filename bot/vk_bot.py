@@ -38,14 +38,13 @@ def write_msg(user_id, message, keyboard=None, attachment=None):
 
 def send_candidate(user_id, candidate, state):
 
-    photos = vk_client.get_user_photos(candidate['id'])
+    photos = vk_client.get_top_3_photos(candidate['id'])
 
     message = f"{candidate['first_name']} {candidate['last_name']}\n"
     message += f"https://vk.com/{candidate.get('domain', '')}\n"
 
-    age = vk_client._calculate_age(candidate.get('bdate'))
-    if age:
-        message += f"Возраст: {age}\n"
+    if candidate.get('age'):
+        message += f"Возраст: {candidate['age']}\n"
 
     attachment = ','.join([p['attachment'] for p in photos]) if photos else ''
 
@@ -73,7 +72,7 @@ def start_bot():
             text = event.text.lower()
 
             if text == "привет" or text == "start" or text == "начать":
-                user_info = vk_client.get_user_info(user_id)
+                user_info = vk_client.get_users_info(user_id)
                 print(user_info)
 
 
@@ -109,14 +108,9 @@ def start_bot():
                     continue
 
                 state = user_states[user_id]
-                user_info = state['info']
 
-                target_sex = 2 if user_info['sex'] == 1 else 1
-
-                candidates = vk_client.search_users(
-                    city_id=user_info['city_id'],
-                    age=user_info['age'],
-                    sex=target_sex,
+                candidates = vk_client.find_partners_for_user(
+                    source_user_id=user_id,
                     count=20
                 )
 
