@@ -182,6 +182,7 @@ class VK_client:
                     likes = item.get('likes', {}).get('count', 0)
                     owner = item.get('owner_id', user_id)
                     all_candidates.append({
+                        'id': item['id'],
                         'attachment': f"photo{owner}_{item['id']}",
                         'likes': likes
                     })
@@ -202,6 +203,7 @@ class VK_client:
                             likes = item.get('likes', {}).get('count', 0)
                             owner = item.get('owner_id', user_id)
                             all_candidates.append({
+                                'id': item['id'],
                                 'attachment': f"photo{owner}_{item['id']}",
                                 'likes': likes
                             })
