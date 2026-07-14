@@ -119,8 +119,8 @@ class VK_client:
             return []
 
 
-    def find_partners_for_user(self, source_user_id: int, age_range: tuple[int, int] = (18, 50), count: int = 50) -> \
-    list[dict]:
+    def find_partners_for_user(self, source_user_id: int, age_range: tuple[int, int] = (18, 50), count: int = 50,
+                               blacklist: list = None, viewed_users: list = None ) -> list[dict]:
         """
         Главная функция: берет ID пользователя, определяет его параметры
         и ищет ему пару с противоположным полом.
@@ -141,7 +141,7 @@ class VK_client:
             max_age = min(range_center + delta, 99)
         else:
             min_age = base_min_age
-            max_age =base_max_age
+            max_age = base_max_age
 
         opposite_sex = 1 if profile['sex'] == 2 else 2
 
@@ -155,6 +155,15 @@ class VK_client:
 
         print(f"Ищем пользователей пола {profile['sex']} "
               f"в городе {profile['city_id']} возрастом от {min_age} до {max_age}")
+
+        # Исключение пользователей из черного списка и просмотренных
+        if blacklist:
+            blacklist_set = set(blacklist)
+            candidates = [c for c in candidates if c['id'] not in blacklist_set]
+
+        if viewed_users:
+            viewed_set = set(viewed_users)
+            candidates = [c for c in candidates if c['id'] not in viewed_set]
 
         return candidates
 

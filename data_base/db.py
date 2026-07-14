@@ -99,7 +99,33 @@ class Database:
                 )
             ''')
 
+            # Таблица лайков (доп)
+            self.cursor.execute('''
+                CREATE TABLE IF NOT EXISTS photo_likes (
+                    id SERIAL PRIMARY KEY,
+                    user_id BIGINT NOT NULL,
+                    photo_owner_id BIGINT NOT NULL,
+                    photo_id VARCHAR(50) NOT NULL,
+                    liked_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(user_id, photo_owner_id, photo_id)
+                )
+            ''')
+
+            # Таблица интересов (доп)
+            self.cursor.execute('''
+                CREATE TABLE IF NOT EXISTS interests (
+                    id SERIAL PRIMARY KEY,
+                    user_id BIGINT NOT NULL,
+                    interest_type VARCHAR(50),
+                    interest_id VARCHAR(100),
+                    interest_name VARCHAR(255),
+                    weight INTEGER DEFAULT 1,
+                    UNIQUE(user_id, interest_type, interest_id)
+                )
+            ''')
+
             # Внешние ключи
+            # favorites
             self.cursor.execute('''
                 ALTER TABLE favorites 
                 ADD CONSTRAINT fk_favorites_user 
@@ -108,6 +134,7 @@ class Database:
                 ON DELETE CASCADE
             ''')
 
+            # blacklist
             self.cursor.execute('''
                 ALTER TABLE blacklist 
                 ADD CONSTRAINT fk_blacklist_user 
@@ -116,6 +143,7 @@ class Database:
                 ON DELETE CASCADE
             ''')
 
+            # viewed_users
             self.cursor.execute('''
                 ALTER TABLE viewed_users 
                 ADD CONSTRAINT fk_viewed_user 
@@ -123,6 +151,24 @@ class Database:
                 REFERENCES users(user_id) 
                 ON DELETE CASCADE
             ''')
+
+            # photo_likes
+            self.cursor.execute('''
+                 ALTER TABLE photo_likes 
+                 ADD CONSTRAINT fk_photo_likes_user 
+                 FOREIGN KEY (user_id) 
+                 REFERENCES users(user_id) 
+                 ON DELETE CASCADE
+             ''')
+
+            # interests
+            self.cursor.execute('''
+                 ALTER TABLE interests 
+                 ADD CONSTRAINT fk_interests_user 
+                 FOREIGN KEY (user_id) 
+                 REFERENCES users(user_id) 
+                 ON DELETE CASCADE
+             ''')
 
             # Индексы
             self.cursor.execute('''
@@ -138,6 +184,16 @@ class Database:
             self.cursor.execute('''
                 CREATE INDEX IF NOT EXISTS idx_viewed_user_id 
                 ON viewed_users(user_id)
+            ''')
+
+            self.cursor.execute('''
+                CREATE INDEX IF NOT EXISTS idx_photo_likes_user 
+                ON photo_likes(user_id)
+            ''')
+
+            self.cursor.execute('''
+                CREATE INDEX IF NOT EXISTS idx_interests_user 
+                ON interests(user_id)
             ''')
 
             self.connection.commit()
@@ -216,6 +272,16 @@ class Database:
             print(f"Ошибка получения избранных: {e}")
             return []
 
+    def is_favorite(self, user_id, candidate_id):
+        """Есть ли в избранном"""
+        self.cursor.execute('''
+            SELECT COUNT(*) > 0 as is_favorite
+            FROM favorites
+            WHERE user_id = %s AND favorite_id = %s
+        ''', (user_id, candidate_id))
+        result = self.cursor.fetchone()
+        return result['is_favorite'] if result else False
+
     def add_to_blacklist(self, user_id, blacklisted_id, reason=None):
         """Добавление пользователя в черный список"""
         try:
@@ -235,14 +301,23 @@ class Database:
         """Получение черного списка"""
         try:
             self.cursor.execute('''
-                SELECT blacklisted_id
+                SELECT blacklisted_id, reason, added_date
                 FROM blacklist
                 WHERE user_id = %s
             ''', (user_id,))
-            return [row['blacklisted_id'] for row in self.cursor.fetchall()]
+            return self.cursor.fetchall()
         except Exception as e:
             print(f"Ошибка получения черного списка: {e}")
             return []
+
+    def is_blacklisted(self, user_id, candidate_id):
+        self.cursor.execute('''
+            SELECT COUNT(*) > 0 as is_blacklisted
+            FROM blacklist
+            WHERE user_id = %s AND blacklisted_id = %s
+        ''', (user_id, candidate_id))
+        result = self.cursor.fetchone()
+        return result['is_blacklisted'] if result else False
 
     def add_viewed_user(self, user_id, viewed_id):
         """Добавление просмотренного пользователя"""
@@ -269,7 +344,7 @@ class Database:
             ''', (user_id,))
             return [row['viewed_id'] for row in self.cursor.fetchall()]
         except Exception as e:
-            print(f"❌ Ошибка получения просмотренных: {e}")
+            print(f"Ошибка получения просмотренных: {e}")
             return []
 
     def close(self):
@@ -278,4 +353,4 @@ class Database:
             self.cursor.close()
         if self.connection:
             self.connection.close()
-            print("🔒 Соединение с БД закрыто")
+            print("Соединение с БД закрыто")

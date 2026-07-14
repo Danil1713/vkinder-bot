@@ -1,5 +1,9 @@
+
 import sys
 import os
+
+from data_base.db import Database
+
 # Добавляем путь к корневой папке проекта
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -11,14 +15,13 @@ from config import Config
 from vk_api_client.vk_client import VK_client
 
 vk_session = vk_api.VkApi(token=Config.group_token)
-
 longpoll = VkLongPoll(vk_session)
-
 vk = vk_session.get_api()
 
 vk_client = VK_client()
-
 user_states = {}
+db = Database()
+
 
 def write_msg(user_id, message, keyboard=None, attachment=None):
 
@@ -56,14 +59,135 @@ def send_candidate(user_id, candidate, state):
                 {"action": {"type": "text", "label": "В избранное"}, "color": "positive"}
             ],
             [
+                {"action": {"type": "text", "label": "В черный список"}, "color": "negative"},
                 {"action": {"type": "text", "label": "Показать избранное"}, "color": "secondary"}
             ]
         ]
     }
 
     write_msg(user_id, message, keyboard=keyboard, attachment=attachment)
-
+    db.add_viewed_user(user_id, candidate['id']) # Сразу добавили в просмотренные
     state['current_index'] += 1
+
+def add_to_favorites(user_id, state):
+    """Добавление в избранное"""
+    current_index = state['current_index'] - 1
+
+    if current_index < 0 or not state['candidates']:
+        write_msg(user_id, "Нет текущего кандидата для добавления.")
+        return
+
+    candidate = state['candidates'][current_index]
+    candidate_name = f"{candidate['first_name']} {candidate['last_name']}"
+    # Проверка на нахождение в "Избранное"
+    if db.is_favorite(user_id, candidate['id']):
+        write_msg(user_id, f"{candidate_name} уже в избранном!")
+        return
+
+    # Получаем фото для сохранения
+    photos = vk_client.get_top_3_photos(candidate['id'])
+    photo_attachments = [p['attachment'] for p in photos] if photos else []
+
+    if db.add_favorite(user_id, candidate, photo_attachments):
+        write_msg(user_id, f"{candidate_name} добавлен в избранное!")
+    else:
+        write_msg(user_id, "Ошибка при добавлении в избранное.")
+
+def add_to_blacklist(user_id, state):
+    """Добавление в черный список"""
+    current_index = state['current_index'] - 1
+
+    if current_index < 0 or not state['candidates']:
+        write_msg(user_id, "Нет текущего кандидата.")
+        return
+
+    candidate = state['candidates'][current_index]
+    candidate_name = f"{candidate['first_name']} {candidate['last_name']}"
+
+    if db.is_blacklisted(user_id, candidate['id']):
+        write_msg(user_id, f"{candidate_name} уже в черном списке!")
+        return
+
+    if db.add_to_blacklist(user_id, candidate['id'], "Добавлен пользователем"):
+        write_msg(user_id, f"{candidate_name} добавлен в черный список.\n")
+        # Следующий
+        state['current_index'] += 1
+        if state['current_index'] < len(state['candidates']):
+            send_candidate(user_id, state['candidates'][state['current_index']], state)
+    else:
+        write_msg(user_id, "Ошибка при добавлении в черный список.")
+
+
+def show_favorites(user_id):
+    """Показать избранных"""
+    favorites = db.get_favorites(user_id)
+
+    if not favorites:
+        write_msg(user_id, "Избранных пока нет.")
+        return
+
+    message = "Ваши избранные:\n\n"
+    for fav in favorites[:6]:
+        message += f"{fav['first_name']} {fav['last_name']}\n"
+        message += f"{fav['profile_url']}\n"
+
+        photos = []
+        for photo in [fav['photo1'], fav['photo2'], fav['photo3']]:
+            if photo:
+                photos.append(photo)
+
+        if photos:
+            write_msg(user_id, f"Фото {fav['first_name']}:", attachment=','.join(photos))
+
+        message += f"Добавлен: {fav['added_date']}\n\n"
+
+    write_msg(user_id, message)
+
+
+def show_blacklist(user_id):
+    """Показать черный список"""
+    blacklist = db.get_blacklist(user_id)
+
+    if not blacklist:
+        write_msg(user_id, "Черный список пуст.")
+        return
+
+    message = "Черный список:\n\n"
+    for idx, item in enumerate(blacklist, 1):
+        message += f"{idx}. ID: {item['blacklisted_id']}\n"
+        if item.get('reason'):
+            message += f"   Причина: {item['reason']}\n"
+        message += f"   Добавлен: {item['added_date']}\n\n"
+
+    write_msg(user_id, message)
+
+def start_search(user_id):
+    """Начало поиска"""
+    if user_id not in user_states:
+        write_msg(user_id, "Напиши 'Привет'")
+        return
+
+    state = user_states[user_id]
+
+    blacklist = db.get_blacklist(user_id)
+    blacklist_id = [item['blacklisted_id'] for item in blacklist]
+    viewed_users = db.get_viewed_users(user_id)
+
+    candidates = vk_client.find_partners_for_user(
+        source_user_id=user_id,
+        count=20,
+        blacklist=blacklist_id,
+        viewed_users=viewed_users
+    )
+
+    if not candidates:
+        write_msg(user_id, "Не найдено кандидатов по твоим критериям.")
+        return
+
+    state['candidates'] = candidates
+    state['current_index'] = 0
+
+    send_candidate(user_id, candidates[0], state)
 
 def start_bot():
     for event in longpoll.listen():
@@ -75,11 +199,11 @@ def start_bot():
                 user_info = vk_client.get_users_info(user_id)
                 print(user_info)
 
-
                 if not user_info:
                     write_msg(user_id, "Не удалось получить информацию. Проверь настройки приватности.")
                     continue
 
+                db.add_user(user_info)
                 user_states[user_id] = {
                     'info': user_info,
                     'candidates': [],
@@ -103,25 +227,7 @@ def start_bot():
                 write_msg(user_id, greeting, keyboard)
 
             elif text == "начать поиск":
-                if user_id not in user_states:
-                    write_msg(user_id, "Сначала напиши 'Привет'")
-                    continue
-
-                state = user_states[user_id]
-
-                candidates = vk_client.find_partners_for_user(
-                    source_user_id=user_id,
-                    count=20
-                )
-
-                if not candidates:
-                    write_msg(user_id, "Не найдено кандидатов по твоим критериям.")
-                    continue
-
-                state['candidates'] = candidates
-                state['current_index'] = 0
-
-                send_candidate(user_id, candidates[0], state)
+                start_search(user_id) # Вывел в функцию
 
             elif text == "дальше":
                 if user_id not in user_states:
@@ -152,25 +258,24 @@ def start_bot():
                     continue
 
                 state = user_states[user_id]
-                current_index = state['current_index'] - 1
+                add_to_favorites(user_id, state)
 
-                if current_index < 0 or not state['candidates']:
-                    write_msg(user_id, "Нет текущего кандидата для добавления.")
+            elif text == "в черный список":
+                if user_id not in user_states:
+                    write_msg(user_id, "Сначала напиши 'Привет'")
                     continue
 
-                candidate = state['candidates'][current_index]
-                candidate_name = f"{candidate['first_name']} {candidate['last_name']}"
-
-                # TODO: Здесь будет вызов БД
-
-                write_msg(user_id, f"✅ {candidate_name} добавлен в избранное!")
+                state = user_states[user_id]
+                add_to_blacklist(user_id, state)
 
             elif text == "показать избранное":
-                # TODO: Здесь будет вызов БД (напарник добавит)
-                write_msg(user_id, "Список избранных (пока временно пуст).\nНапарник добавит БД позже.")
+                show_favorites(user_id)
+
+            elif text == "показать черный список":
+                show_blacklist(user_id)
+
             else:
                 write_msg(user_id,
-                          "Не понял команду. Доступные команды: 'Привет', 'Начать поиск', 'Дальше', 'В избранное', 'Показать избранное'.")
-
-
+                          "Не понял команду. Доступные команды: 'Привет', 'Начать поиск', 'Дальше', "
+                          "'В избранное', 'В черный список', 'Показать избранное', 'Показать черный список'.")
 
