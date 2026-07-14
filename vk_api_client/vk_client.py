@@ -26,7 +26,7 @@ class VK_client:
             response = self.group_api.users.get(
                 user_ids=user_id,
                 name_case='nom',
-                fields='bdate,city,sex,relation',
+                fields='bdate,city,sex,relation,domain',
                 v=self.version
             )
 
@@ -44,6 +44,7 @@ class VK_client:
                 'sex': data.get('sex'),
                 'city_id': city_data.get('id') if city_data else None,
                 'city_title': city_data.get('title') if city_data else None,
+                'domain': data.get('domain'),
             }
 
             if bdate_str and '.' in bdate_str:
@@ -80,7 +81,7 @@ class VK_client:
                 status=6,
                 has_photo=1,
                 is_closed=False,
-                fields='is_closed,bdate',
+                fields='is_closed,bdate,domain',
                 v=self.version
             )
 
@@ -107,7 +108,8 @@ class VK_client:
                         'id': user['id'],
                         'first_name': user['first_name'],
                         'last_name': user['last_name'],
-                        'age': calculated_age
+                        'age': calculated_age,
+                        'domain': user.get('domain'),
                     })
 
             return results
@@ -174,17 +176,15 @@ class VK_client:
             )
 
             for item in profile_photos.get('items', []):
-                like_count = item.get('likes', {}).get('count', 0)
                 sizes = item.get('sizes', [])
-                if not sizes:
-                    continue
-
-                best_size = max(sizes, key=lambda s: s['width'] * s['height'])
-                all_candidates.append({
-                    'id': item['id'],
-                    'url': best_size['url'],
-                    'likes': like_count
-                })
+                if sizes:
+                    best_size = max(sizes, key=lambda s: s['width'] * s['height'])
+                    likes = item.get('likes', {}).get('count', 0)
+                    owner = item.get('owner_id', user_id)
+                    all_candidates.append({
+                        'attachment': f"photo{owner}_{item['id']}",
+                        'likes': likes
+                    })
 
             # 2. Пытаемся получить фото из стандартного альбома "Фото со страницы"
             # (вдруг там есть другие кадры, которых нет в профиле)
@@ -196,17 +196,16 @@ class VK_client:
                     sys_photos = self.search_api.photos.get(owner_id=user_id, album_id=aid, count=50, photo_sizes=1,
                                                            v=self.version)
                     for item in sys_photos.get('items', []):
-                        like_count = item.get('likes', {}).get('count', 0)
                         sizes = item.get('sizes', [])
-                        if not sizes:
-                            continue
+                        if sizes:
+                            best_size = max(sizes, key=lambda s: s['width'] * s['height'])
+                            likes = item.get('likes', {}).get('count', 0)
+                            owner = item.get('owner_id', user_id)
+                            all_candidates.append({
+                                'attachment': f"photo{owner}_{item['id']}",
+                                'likes': likes
+                            })
 
-                        best_size = max(sizes, key=lambda s: s['width'] * s['height'])
-                        all_candidates.append({
-                            'id': item['id'],
-                            'url': best_size['url'],
-                            'likes': like_count
-                        })
             except vk_api.exceptions.ApiError:
                 pass  # Если альбомов нет - просто идем дальше
 
@@ -221,35 +220,34 @@ class VK_client:
 
 # --- Блок исполнения ---
 
-if __name__ == "__main__":
-    vk_info = VK_client()
-    pprint(vk_info.get_users_info(Config.user_id))
-
-    partners = vk_info.find_partners_for_user(Config.user_id, age_range=(20, 40), count=20)
-
-    print(f"\nНайдено подходящих кандидатов: {len(partners)}")
-    pprint(partners[:5])
-
-    # Получаем топ фото
-    top_photos = vk_info.get_top_3_photos(Config.user_id)
-
-    if not top_photos:
-        print("\nУ пользователя не найдено доступных фотографий.")
-    else:
-        print("\nТоп-3 фотографии профиля:")
-        for i, photo in enumerate(top_photos, start=1):
-            # Проверяем наличие всех необходимых полей для красивого вывода
-            width = photo.get('width')
-            height = photo.get('height')
-
-            likes = photo.get('likes', 0)
-            url = photo.get('url', 'Ссылка отсутствует')
-
-            if width and height:
-                print(f"{i}. Лайки: {likes} | Разрешение: {width}x{height}")
-            else:
-                print(f"{i}. Лайки: {likes} | Разрешение: N/A")  # Если данных о размере нет
-
-            print(url)
-            print("-" * 40)
-
+# if __name__ == "__main__":
+#     vk_info = VK_client()
+#     pprint(vk_info.get_users_info(Config.user_id))
+#
+#     partners = vk_info.find_partners_for_user(Config.user_id, age_range=(20, 40), count=20)
+#
+#     print(f"\nНайдено подходящих кандидатов: {len(partners)}")
+#     pprint(partners[:5])
+#
+#     # Получаем топ фото
+#     top_photos = vk_info.get_top_3_photos(Config.user_id)
+#
+#     if not top_photos:
+#         print("\nУ пользователя не найдено доступных фотографий.")
+#     else:
+#         print("\nТоп-3 фотографии профиля:")
+#         for i, photo in enumerate(top_photos, start=1):
+#             # Проверяем наличие всех необходимых полей для красивого вывода
+#             width = photo.get('width')
+#             height = photo.get('height')
+#
+#             likes = photo.get('likes', 0)
+#             attachment = photo.get('attachment')
+#
+#             if width and height:
+#                 print(f"{i}. Лайки: {likes} | Разрешение: {width}x{height}")
+#             else:
+#                 print(f"{i}. Лайки: {likes} | Разрешение: N/A")  # Если данных о размере нет
+#
+#             print(attachment)
+#             print("-" * 40)
