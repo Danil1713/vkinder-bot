@@ -213,6 +213,8 @@ def start_bot():
                 greeting = f"Привет, {user_info['first_name']} {user_info['last_name']}!\n"
                 greeting += f"Твой возраст: {user_info['age']} лет\n"
                 greeting += f"Твой город: {user_info['city_title']}\n\n"
+                greeting += ("Вы можете найти кандидатов противоположного пола\n "
+                             "со статусом 'В активном поиске' +-5 лет от Вашего возраста\n\n")
                 greeting += "Нажми 'Начать поиск', чтобы найти кандидатов."
 
                 keyboard = {

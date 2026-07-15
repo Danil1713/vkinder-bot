@@ -73,7 +73,7 @@ class VK_client:
             response = self.search_api.users.search(
                 sort=0,
                 offset=0,
-                count=min(count, 50),
+                count=min(count, 100),
                 sex=target_sex,
                 city=city_id,
                 age_from=age_from,
