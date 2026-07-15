@@ -1,6 +1,7 @@
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import os
+from datetime import datetime
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -45,6 +46,12 @@ class Database:
     def create_tables_programmatically(self):
         """Создание таблиц"""
         try:
+            self.cursor.execute('DROP TABLE IF EXISTS favorites CASCADE')
+            self.cursor.execute('DROP TABLE IF EXISTS blacklist CASCADE')
+            self.cursor.execute('DROP TABLE IF EXISTS viewed_users CASCADE')
+            self.cursor.execute('DROP TABLE IF EXISTS users CASCADE')
+            self.cursor.execute('DROP TABLE IF EXISTS photo_likes CASCADE')
+            self.cursor.execute('DROP TABLE IF EXISTS interests CASCADE')
             # Таблица пользователей
             self.cursor.execute('''
                 CREATE TABLE IF NOT EXISTS users (
@@ -127,47 +134,89 @@ class Database:
             # Внешние ключи
             # favorites
             self.cursor.execute('''
-                ALTER TABLE favorites 
-                ADD CONSTRAINT fk_favorites_user 
-                FOREIGN KEY (user_id) 
-                REFERENCES users(user_id) 
-                ON DELETE CASCADE
+                DO $$ 
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 
+                        FROM information_schema.table_constraints 
+                        WHERE constraint_name = 'fk_favorites_user') THEN
+                        ALTER TABLE favorites 
+                        ADD CONSTRAINT fk_favorites_user 
+                        FOREIGN KEY (user_id) 
+                        REFERENCES users(user_id) 
+                        ON DELETE CASCADE;
+                    END IF;
+                END $$;
             ''')
 
             # blacklist
             self.cursor.execute('''
-                ALTER TABLE blacklist 
-                ADD CONSTRAINT fk_blacklist_user 
-                FOREIGN KEY (user_id) 
-                REFERENCES users(user_id) 
-                ON DELETE CASCADE
+                DO $$ 
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 
+                        FROM information_schema.table_constraints 
+                        WHERE constraint_name = 'fk_blacklist_user') THEN
+                        ALTER TABLE blacklist 
+                        ADD CONSTRAINT fk_blacklist_user 
+                        FOREIGN KEY (user_id) 
+                        REFERENCES users(user_id) 
+                        ON DELETE CASCADE;
+                    END IF;
+                END $$;
             ''')
 
             # viewed_users
             self.cursor.execute('''
-                ALTER TABLE viewed_users 
-                ADD CONSTRAINT fk_viewed_user 
-                FOREIGN KEY (user_id) 
-                REFERENCES users(user_id) 
-                ON DELETE CASCADE
+                DO $$ 
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 
+                        FROM information_schema.table_constraints 
+                        WHERE constraint_name = 'fk_viewed_user') THEN
+                        ALTER TABLE viewed_users 
+                        ADD CONSTRAINT fk_viewed_user 
+                        FOREIGN KEY (user_id) 
+                        REFERENCES users(user_id) 
+                        ON DELETE CASCADE;
+                    END IF;
+                END $$;
             ''')
 
             # photo_likes
             self.cursor.execute('''
-                 ALTER TABLE photo_likes 
-                 ADD CONSTRAINT fk_photo_likes_user 
-                 FOREIGN KEY (user_id) 
-                 REFERENCES users(user_id) 
-                 ON DELETE CASCADE
+             DO $$ 
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 
+                        FROM information_schema.table_constraints 
+                        WHERE constraint_name = 'fk_photo_likes_user'
+                    ) THEN
+                        ALTER TABLE photo_likes 
+                        ADD CONSTRAINT fk_photo_likes_user 
+                        FOREIGN KEY (user_id) 
+                        REFERENCES users(user_id) 
+                        ON DELETE CASCADE;
+                    END IF;
+                END $$;
              ''')
 
             # interests
             self.cursor.execute('''
-                 ALTER TABLE interests 
-                 ADD CONSTRAINT fk_interests_user 
-                 FOREIGN KEY (user_id) 
-                 REFERENCES users(user_id) 
-                 ON DELETE CASCADE
+                DO $$ 
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 
+                        FROM information_schema.table_constraints 
+                        WHERE constraint_name = 'fk_interests_user'
+                    ) THEN
+                        ALTER TABLE interests 
+                        ADD CONSTRAINT fk_interests_user 
+                        FOREIGN KEY (user_id) 
+                        REFERENCES users(user_id) 
+                        ON DELETE CASCADE;
+                    END IF;
+                END $$;
              ''')
 
             # Индексы
@@ -236,10 +285,11 @@ class Database:
     def add_favorite(self, user_id, candidate_data, photos):
         """Добавление пользователя в избранное"""
         try:
+            formatted_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             self.cursor.execute('''
                 INSERT INTO favorites 
-                (user_id, favorite_id, first_name, last_name, profile_url, photo1, photo2, photo3)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                (user_id, favorite_id, first_name, last_name, profile_url, photo1, photo2, photo3, added_date)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (user_id, favorite_id) DO NOTHING
             ''', (
                 user_id,
@@ -249,7 +299,8 @@ class Database:
                 f"https://vk.com/id{candidate_data['id']}",
                 photos[0] if len(photos) > 0 else None,
                 photos[1] if len(photos) > 1 else None,
-                photos[2] if len(photos) > 2 else None
+                photos[2] if len(photos) > 2 else None,
+                formatted_date
             ))
             self.connection.commit()
             return True
@@ -262,7 +313,8 @@ class Database:
         """Получение списка избранных"""
         try:
             self.cursor.execute('''
-                SELECT favorite_id, first_name, last_name, profile_url, photo1, photo2, photo3, added_date
+                SELECT favorite_id, first_name, last_name, profile_url, 
+                photo1, photo2, photo3, added_date
                 FROM favorites
                 WHERE user_id = %s
                 ORDER BY added_date DESC
@@ -285,11 +337,13 @@ class Database:
     def add_to_blacklist(self, user_id, blacklisted_id, reason=None):
         """Добавление пользователя в черный список"""
         try:
+            from datetime import datetime
+            formatted_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             self.cursor.execute('''
-                INSERT INTO blacklist (user_id, blacklisted_id, reason)
-                VALUES (%s, %s, %s)
+                INSERT INTO blacklist (user_id, blacklisted_id, reason, added_date)
+                VALUES (%s, %s, %s, %s)
                 ON CONFLICT (user_id, blacklisted_id) DO NOTHING
-            ''', (user_id, blacklisted_id, reason))
+            ''', (user_id, blacklisted_id, reason, formatted_date))
             self.connection.commit()
             return True
         except Exception as e:
@@ -304,6 +358,7 @@ class Database:
                 SELECT blacklisted_id, reason, added_date
                 FROM blacklist
                 WHERE user_id = %s
+                ORDER BY added_date DESC
             ''', (user_id,))
             return self.cursor.fetchall()
         except Exception as e:
@@ -322,11 +377,12 @@ class Database:
     def add_viewed_user(self, user_id, viewed_id):
         """Добавление просмотренного пользователя"""
         try:
+            formatted_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             self.cursor.execute('''
-                INSERT INTO viewed_users (user_id, viewed_id)
-                VALUES (%s, %s)
+                INSERT INTO viewed_users (user_id, viewed_id, viewed_date)
+                VALUES (%s, %s, %s)
                 ON CONFLICT (user_id, viewed_id) DO NOTHING
-            ''', (user_id, viewed_id))
+            ''', (user_id, viewed_id, formatted_date))
             self.connection.commit()
             return True
         except Exception as e:
@@ -338,10 +394,11 @@ class Database:
         """Получение списка просмотренных"""
         try:
             self.cursor.execute('''
-                SELECT viewed_id
-                FROM viewed_users
-                WHERE user_id = %s
-            ''', (user_id,))
+                    SELECT viewed_id
+                    FROM viewed_users
+                    WHERE user_id = %s
+                    ORDER BY viewed_date DESC
+                ''', (user_id,))
             return [row['viewed_id'] for row in self.cursor.fetchall()]
         except Exception as e:
             print(f"Ошибка получения просмотренных: {e}")
