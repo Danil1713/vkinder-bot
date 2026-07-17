@@ -1,5 +1,9 @@
+import logging
 import vk_api
+
 from config import Config
+
+logger = logging.getLogger(__name__)
 
 
 class VK_client:
@@ -16,6 +20,7 @@ class VK_client:
 
         # Актуальная версия API
         self.version = Config.version
+        logger.info("VK_client инициализирован")
 
     def get_users_info(self, user_id: int) -> dict | None:
         """
@@ -30,9 +35,11 @@ class VK_client:
             )
 
             if not response or response[0].get('is_closed'):
+                logger.warning(f"Пользователь {user_id} не найден")
                 return None
 
             data = response[0]
+            logger.debug(f"Получены данные пользователя {user_id}: {data}")
             city_data = data.get('city')
             bdate_str = data.get('bdate')
 
@@ -58,7 +65,10 @@ class VK_client:
 
             return result
         except vk_api.exceptions.ApiError as e:
-            print(f"[get_user_profile] Ошибка API для {user_id}: {e}")
+            logger.error(f"[get_user_profile] Ошибка API для {user_id}: {e}")
+            return None
+        except Exception as e:
+            logger.error(f"Неизвестная ошибка в get_users_info: {e}")
             return None
 
     def search_opposite(
@@ -120,7 +130,7 @@ class VK_client:
             return results
 
         except vk_api.exceptions.ApiError as e:
-            print(f"[search_opposite] Ошибка API: {e}")
+            logger.error(f"[search_opposite] Ошибка API: {e}")
             return []
 
     def find_partners_for_user(
@@ -138,7 +148,7 @@ class VK_client:
         profile = self.get_users_info(source_user_id)
 
         if not profile:
-            print("Не удалось определить профиль-источник.")
+            logger.warning("Не удалось определить профиль-источник.")
             return []
 
         base_min_age, base_max_age = age_range
@@ -164,9 +174,9 @@ class VK_client:
             count=count
         )
 
-        print(f"Ищем пользователей пола {profile['sex']} "
-              f"в городе {profile['city_id']} "
-              f"возрастом от {min_age} до {max_age}")
+        logger.info(f"Ищем пользователей пола {profile['sex']} "
+                    f"в городе {profile['city_id']} "
+                    f"возрастом от {min_age} до {max_age}")
 
         # Исключение пользователей из черного списка и просмотренных
         if blacklist:
@@ -260,5 +270,5 @@ class VK_client:
             return sorted_photos[:3]
 
         except vk_api.exceptions.ApiError as e:
-            print(f"[get_top_3_photos] Ошибка API для {user_id}: {e}")
+            logger.error(f"[get_top_3_photos] Ошибка API для {user_id}: {e}")
             return []
