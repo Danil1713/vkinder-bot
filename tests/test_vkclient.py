@@ -130,7 +130,12 @@ def test_search_opposite_filters_and_age(client, mock_vk_session):
         ]
     }
 
-    results = client.search_opposite(target_sex=1, city_id=10, age_from=20, age_to=30, count=10)
+    results = client.search_opposite(
+        target_sex=1,
+        city_id=10,
+        age_from=20,
+        age_to=30,
+        count=10)
 
     assert len(results) == 2
     assert results[0]['id'] == 10
@@ -149,7 +154,7 @@ def test_search_opposite_api_error(client, mock_vk_session):
         method="users.search",
         values={},
         raw=None,
-        error={"error_code": 6, "error_msg": "Rate limit"},  # Обычно ВК возвращает и код, и сообщение
+        error={"error_code": 6, "error_msg": "Rate limit"},
         vk=client  # Ссылка на инстанс вашего тестируемого клиента
     )
 
@@ -177,7 +182,11 @@ def test_find_partners_calculates_range_explicit(client, mock_vk_session):
 
     client.search_opposite = search_mock
 
-    client.find_partners_for_user(source_user_id=1, age_range=(18, 40), count=10)
+    client.find_partners_for_user(
+        source_user_id=1,
+        age_range=(18, 40),
+        count=10
+    )
 
     assert search_mock.called
     kwargs = search_mock.call_args.kwargs
@@ -214,7 +223,8 @@ def test_find_partners_no_age_in_profile(client, mock_vk_session):
 
 def test_get_top_3_photos_aggregation_and_sorting(client, mock_vk_session):
     """
-    Проверяет сбор фотографий из профиля и альбомов, а также их сортировку по лайкам.
+    Проверяет сбор фотографий из профиля и альбомов,
+     а также их сортировку по лайкам.
 
     Тест имитирует ситуацию, когда у пользователя есть фото на аватарке
     и фотографии в системном альбоме. Ожидается, что метод соберет все снимки
@@ -225,8 +235,12 @@ def test_get_top_3_photos_aggregation_and_sorting(client, mock_vk_session):
     # Фото из профиля (аватарки)
     mock_vk_session['search_api'].photos.getProfile.return_value = {
         'items': [
-            {'id': 1, 'likes': {'count': 5}, 'sizes': [{'url': 'u1.jpg', 'width': 100, 'height': 100}]},
-            {'id': 2, 'likes': {'count': 15}, 'sizes': [{'url': 'u2.jpg', 'width': 200, 'height': 200}]}
+            {'id': 1, 'likes': {'count': 5}, 'sizes': [
+                {'url': 'u1.jpg', 'width': 100, 'height': 100}
+            ]},
+            {'id': 2, 'likes': {'count': 15}, 'sizes': [
+                {'url': 'u2.jpg', 'width': 200, 'height': 200}
+            ]}
         ]
     }
 
@@ -238,8 +252,12 @@ def test_get_top_3_photos_aggregation_and_sorting(client, mock_vk_session):
     # Фото из альбома со страницы
     mock_vk_session['search_api'].photos.get.return_value = {
         'items': [
-            {'id': 3, 'likes': {'count': 25}, 'sizes': [{'url': 'a1.jpg', 'width': 300, 'height': 300}]},
-            {'id': 4, 'likes': {'count': 2}, 'sizes': [{'url': 'a2.jpg', 'width': 50, 'height': 50}]}
+            {'id': 3, 'likes': {'count': 25}, 'sizes': [
+                {'url': 'a1.jpg', 'width': 300, 'height': 300}
+            ]},
+            {'id': 4, 'likes': {'count': 2}, 'sizes': [
+                {'url': 'a2.jpg', 'width': 50, 'height': 50}
+            ]}
         ]
     }
 
@@ -250,18 +268,21 @@ def test_get_top_3_photos_aggregation_and_sorting(client, mock_vk_session):
     assert [item['id'] for item in result] == [3, 2, 1]
 
 
-
 def test_get_top_3_photos_handles_empty_albums(client, mock_vk_session):
     """
-    Проверяет поведение метода, когда у пользователя полностью отсутствуют фотографии.
+    Проверяет поведение метода,
+    когда у пользователя полностью отсутствуют фотографии.
 
     Сценарий: профиль пуст, альбомов нет.
     Ожидаемый результат: метод должен вернуть пустой список []
     без возникновения ошибок или исключений.
     """
     user_id = 200
-    mock_vk_session['search_api'].photos.getProfile.return_value = {'items': []}
-    mock_vk_session['search_api'].photos.getAlbums.return_value = {'items': []}  # Альбомов нет вообще
+    mock_vk_session['search_api'].photos.getProfile.return_value = {
+        'items': []
+    }
+    # Альбомов нет вообще
+    mock_vk_session['search_api'].photos.getAlbums.return_value = {'items': []}
 
     result = client.get_top_3_photos(user_id)
     assert result == []
@@ -278,7 +299,9 @@ def test_get_top_3_photos_skips_photos_without_sizes(client, mock_vk_session):
     mock_vk_session['search_api'].photos.getProfile.return_value = {
         'items': [
             {'id': 10, 'likes': {'count': 100}, 'sizes': []},  # Пропускается
-            {'id': 11, 'likes': {'count': 50}, 'sizes': [{'url': 'valid.jpg', 'width': 100, 'height': 100}]}
+            {'id': 11, 'likes': {'count': 50}, 'sizes': [
+                {'url': 'valid.jpg', 'width': 100, 'height': 100}
+            ]}
         ]
     }
     mock_vk_session['search_api'].photos.getAlbums.return_value = {'items': []}

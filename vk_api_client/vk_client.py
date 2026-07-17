@@ -1,6 +1,6 @@
-from pprint import pprint
 import vk_api
 from config import Config
+
 
 class VK_client:
 
@@ -16,7 +16,6 @@ class VK_client:
 
         # Актуальная версия API
         self.version = Config.version
-
 
     def get_users_info(self, user_id: int) -> dict | None:
         """
@@ -62,9 +61,14 @@ class VK_client:
             print(f"[get_user_profile] Ошибка API для {user_id}: {e}")
             return None
 
-
-    def search_opposite(self, target_sex: int, city_id: int, age_from: int, age_to: int, count: int = 100) -> list[
-        dict]:
+    def search_opposite(
+            self,
+            target_sex: int,
+            city_id: int,
+            age_from: int,
+            age_to: int,
+            count: int = 100
+    ) -> list[dict]:
         """
         Ищет пользователей по заданным критериям.
         (возраст, пол, город)
@@ -96,7 +100,8 @@ class VK_client:
 
                     bdate_str = user.get('bdate')
 
-                    # Проверяем наличие даты и того, что в ней указан ГОД (3 части)
+                    # Проверяем наличие даты и того,
+                    # что в ней указан ГОД (3 части)
                     if bdate_str and len(bdate_str.split('.')) == 3:
                         parts = bdate_str.split('.')
                         birth_year = int(parts[2])
@@ -118,9 +123,14 @@ class VK_client:
             print(f"[search_opposite] Ошибка API: {e}")
             return []
 
-
-    def find_partners_for_user(self, source_user_id: int, age_range: tuple[int, int] = (18, 50), count: int = 50,
-                               blacklist: list = None, viewed_users: list = None ) -> list[dict]:
+    def find_partners_for_user(
+            self,
+            source_user_id: int,
+            age_range: tuple[int, int] = (18, 50),
+            count: int = 50,
+            blacklist: list = None,
+            viewed_users: list = None
+    ) -> list[dict]:
         """
         Главная функция: берет ID пользователя, определяет его параметры
         и ищет ему пару с противоположным полом.
@@ -133,7 +143,8 @@ class VK_client:
 
         base_min_age, base_max_age = age_range
 
-        # Если мы смогли вычислить возраст пользователя, сузим диапазон вокруг него
+        # Если мы смогли вычислить возраст пользователя,
+        # сузим диапазон вокруг него
         if profile['age']:
             range_center = profile['age']
             delta = 5
@@ -154,19 +165,20 @@ class VK_client:
         )
 
         print(f"Ищем пользователей пола {profile['sex']} "
-              f"в городе {profile['city_id']} возрастом от {min_age} до {max_age}")
+              f"в городе {profile['city_id']} "
+              f"возрастом от {min_age} до {max_age}")
 
         # Исключение пользователей из черного списка и просмотренных
         if blacklist:
             blacklist_set = set(blacklist)
-            candidates = [c for c in candidates if c['id'] not in blacklist_set]
+            candidates = [c for c in candidates
+                          if c['id'] not in blacklist_set]
 
         if viewed_users:
             viewed_set = set(viewed_users)
             candidates = [c for c in candidates if c['id'] not in viewed_set]
 
         return candidates
-
 
     def get_top_3_photos(self, user_id: int) -> list[dict]:
         """
@@ -187,7 +199,10 @@ class VK_client:
             for item in profile_photos.get('items', []):
                 sizes = item.get('sizes', [])
                 if sizes:
-                    best_size = max(sizes, key=lambda s: s['width'] * s['height'])
+                    best_size = max(
+                        sizes,
+                        key=lambda s: s['width'] * s['height']
+                    )
                     likes = item.get('likes', {}).get('count', 0)
                     owner = item.get('owner_id', user_id)
                     all_candidates.append({
@@ -196,19 +211,34 @@ class VK_client:
                         'likes': likes
                     })
 
-            # 2. Пытаемся получить фото из стандартного альбома "Фото со страницы"
+            # 2. Пытаемся получить фото из стандартного альбома
+            # "Фото со страницы"
             # (вдруг там есть другие кадры, которых нет в профиле)
             try:
-                wall_albums = self.search_api.photos.getAlbums(owner_id=user_id, need_system=1, v=self.version)
-                system_album_ids = [alb['id'] for alb in wall_albums.get('items', []) if alb.get('is_system')]
+                wall_albums = self.search_api.photos.getAlbums(
+                    owner_id=user_id,
+                    need_system=1,
+                    v=self.version
+                )
+                system_album_ids = [alb['id']
+                                    for alb in wall_albums.get('items', [])
+                                    if alb.get('is_system')]
 
-                for aid in system_album_ids[:2]:  # Проверяем максимум первые два системных альбома
-                    sys_photos = self.search_api.photos.get(owner_id=user_id, album_id=aid, count=50, photo_sizes=1,
-                                                           v=self.version)
+                for aid in system_album_ids[:2]:
+                    sys_photos = self.search_api.photos.get(
+                        owner_id=user_id,
+                        album_id=aid,
+                        count=50,
+                        photo_sizes=1,
+                        v=self.version
+                    )
                     for item in sys_photos.get('items', []):
                         sizes = item.get('sizes', [])
                         if sizes:
-                            best_size = max(sizes, key=lambda s: s['width'] * s['height'])
+                            best_size = max(
+                                sizes,
+                                key=lambda s: s['width'] * s['height']
+                            )
                             likes = item.get('likes', {}).get('count', 0)
                             owner = item.get('owner_id', user_id)
                             all_candidates.append({
@@ -221,44 +251,14 @@ class VK_client:
                 pass  # Если альбомов нет - просто идем дальше
 
             # 3. Сортируем всё найденное по лайкам
-            sorted_photos = sorted(all_candidates, key=lambda x: x['likes'], reverse=True)
+            sorted_photos = sorted(
+                all_candidates,
+                key=lambda x: x['likes'],
+                reverse=True
+            )
 
             return sorted_photos[:3]
 
         except vk_api.exceptions.ApiError as e:
             print(f"[get_top_3_photos] Ошибка API для {user_id}: {e}")
             return []
-
-# --- Блок исполнения ---
-
-# if __name__ == "__main__":
-#     vk_info = VK_client()
-#     pprint(vk_info.get_users_info(Config.user_id))
-#
-#     partners = vk_info.find_partners_for_user(Config.user_id, age_range=(20, 40), count=20)
-#
-#     print(f"\nНайдено подходящих кандидатов: {len(partners)}")
-#     pprint(partners[:5])
-#
-#     # Получаем топ фото
-#     top_photos = vk_info.get_top_3_photos(Config.user_id)
-#
-#     if not top_photos:
-#         print("\nУ пользователя не найдено доступных фотографий.")
-#     else:
-#         print("\nТоп-3 фотографии профиля:")
-#         for i, photo in enumerate(top_photos, start=1):
-#             # Проверяем наличие всех необходимых полей для красивого вывода
-#             width = photo.get('width')
-#             height = photo.get('height')
-#
-#             likes = photo.get('likes', 0)
-#             attachment = photo.get('attachment')
-#
-#             if width and height:
-#                 print(f"{i}. Лайки: {likes} | Разрешение: {width}x{height}")
-#             else:
-#                 print(f"{i}. Лайки: {likes} | Разрешение: N/A")  # Если данных о размере нет
-#
-#             print(attachment)
-#             print("-" * 40)

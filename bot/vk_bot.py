@@ -56,11 +56,15 @@ def send_candidate(user_id, candidate, state):
         "buttons": [
             [
                 {"action": {"type": "text", "label": "Дальше"}, "color": "primary"},
-                {"action": {"type": "text", "label": "В избранное"}, "color": "positive"}
             ],
             [
-                {"action": {"type": "text", "label": "В черный список"}, "color": "negative"},
-                {"action": {"type": "text", "label": "Показать избранное"}, "color": "secondary"}
+                {"action": {"type": "text", "label": "В избранное"}, "color": "positive"},
+                {"action": {"type": "text", "label": "В черный список"}, "color": "negative"}
+
+            ],
+            [
+                {"action": {"type": "text", "label": "Показать избранное"}, "color": "secondary"},
+                {"action": {"type": "text", "label": "Показать черный список"}, "color": "secondary"}
             ]
         ]
     }
@@ -164,7 +168,15 @@ def show_blacklist(user_id):
 def start_search(user_id):
     """Начало поиска"""
     if user_id not in user_states:
-        write_msg(user_id, "Напиши 'Привет'")
+        keyboard = {
+            "one_time": False,
+            "buttons": [
+                [
+                    {"action": {"type": "text", "label": "start"}, "color": "primary"}
+                ]
+            ]
+        }
+        write_msg(user_id, "Нажми на кнопку 'start'", keyboard=keyboard)
         return
 
     state = user_states[user_id]
@@ -200,7 +212,20 @@ def start_bot():
                 print(user_info)
 
                 if not user_info:
-                    write_msg(user_id, "Не удалось получить информацию. Проверь настройки приватности.")
+                    keyboard = {
+                        "one_time": False,
+                        "buttons": [
+                            [
+                                {"action": {"type": "text", "label": "start"}, "color": "primary"}
+                            ]
+                        ]
+                    }
+                    write_msg(
+                        user_id,
+                        "Не удалось получить информацию. "
+                        "Проверь настройки приватности и снова нажми кнопку 'start'",
+                        keyboard=keyboard
+                    )
                     continue
 
                 db.add_user(user_info)
@@ -233,7 +258,15 @@ def start_bot():
 
             elif text == "дальше":
                 if user_id not in user_states:
-                    write_msg(user_id, "Сначала напиши 'Привет'")
+                    keyboard = {
+                        "one_time": False,
+                        "buttons": [
+                            [
+                                {"action": {"type": "text", "label": "start"}, "color": "primary"}
+                            ]
+                        ]
+                    }
+                    write_msg(user_id, "Нажми на кнопку 'start'", keyboard=keyboard)
                     continue
 
                 state = user_states[user_id]
@@ -256,7 +289,15 @@ def start_bot():
 
             elif text == "в избранное":
                 if user_id not in user_states:
-                    write_msg(user_id, "Сначала напиши 'Привет'")
+                    keyboard = {
+                        "one_time": False,
+                        "buttons": [
+                            [
+                                {"action": {"type": "text", "label": "start"}, "color": "primary"}
+                            ]
+                        ]
+                    }
+                    write_msg(user_id, "Нажми на кнопку 'start'", keyboard=keyboard)
                     continue
 
                 state = user_states[user_id]
@@ -264,7 +305,15 @@ def start_bot():
 
             elif text == "в черный список":
                 if user_id not in user_states:
-                    write_msg(user_id, "Сначала напиши 'Привет'")
+                    keyboard = {
+                        "one_time": False,
+                        "buttons": [
+                            [
+                                {"action": {"type": "text", "label": "start"}, "color": "primary"}
+                            ]
+                        ]
+                    }
+                    write_msg(user_id, "Нажми на кнопку 'start'", keyboard=keyboard)
                     continue
 
                 state = user_states[user_id]
@@ -277,7 +326,25 @@ def start_bot():
                 show_blacklist(user_id)
 
             else:
-                write_msg(user_id,
-                          "Не понял команду. Доступные команды: 'Привет', 'Начать поиск', 'Дальше', "
-                          "'В избранное', 'В черный список', 'Показать избранное', 'Показать черный список'.")
+                keyboard = {
+                    "one_time": False,
+                    "buttons": [
+                        [
+                            {"action": {"type": "text", "label": "Дальше"}, "color": "primary"},
+                        ],
+                        [
+                            {"action": {"type": "text", "label": "В избранное"}, "color": "positive"},
+                            {"action": {"type": "text", "label": "В черный список"}, "color": "negative"}
 
+                        ],
+                        [
+                            {"action": {"type": "text", "label": "Показать избранное"}, "color": "secondary"},
+                            {"action": {"type": "text", "label": "Показать черный список"}, "color": "secondary"}
+                        ]
+                    ]
+                }
+                write_msg(user_id,
+                          "Не понял команду. "
+                          "Используй кнопки",
+                          keyboard=keyboard
+                          )
