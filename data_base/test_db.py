@@ -56,11 +56,12 @@ def test_database():
         'first_name': 'Анна',
         'last_name': 'Петрова'
     }
-    photos1 = ['photo987654321_123', 'photo987654321_456', 'photo987654321_789']
+    photos1 = ['photo987654321_123', 'photo987654321_456',
+               'photo987654321_789']
 
     result = db.add_favorite(123456789, candidate1, photos1)
-    print_result(result, f"{candidate1['first_name']} {candidate1['last_name']} "
-                         f"добавлен в избранное")
+    print_result(result, f"{candidate1['first_name']} "
+                         f"{candidate1['last_name']} добавлен в избранное")
 
     candidate2 = {
         'id': 555555555,
@@ -123,13 +124,13 @@ def test_database():
     result = db.is_blacklisted(123456789, 999999999)
     print_result(not result, "Несуществующий пользователь НЕ в черном списке")
 
-
     # 8. Весь черный список
 
     print_test_header("Получение черного списка")
 
     blacklist = db.get_blacklist(123456789)
-    print_result(len(blacklist) > 0, f"Получено в черном списке: {len(blacklist)}")
+    print_result(len(blacklist) > 0, f"Получено в черном списке:"
+                                     f" {len(blacklist)}")
 
     for item in blacklist:
         print(f" ID: {item['blacklisted_id']}")
