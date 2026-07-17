@@ -3,8 +3,16 @@ from psycopg2.extras import RealDictCursor
 import os
 from datetime import datetime
 from dotenv import load_dotenv
+import logging
+from logging_config import setup_logging
+
+
 
 load_dotenv()
+
+setup_logging(log_file="db.log", log_level=logging.INFO)
+
+logger = logging.getLogger(__name__)
 
 
 class Database:
@@ -19,6 +27,7 @@ class Database:
     def connect(self):
         """Установка соединения с БД"""
         try:
+            # В РАБОЧЕЙ ВЕРСИИ УДАЛИТЬ ЛИШНЕЕ
             self.connection = psycopg2.connect(
                 host=os.getenv('DB_HOST', 'localhost'),
                 port=os.getenv('DB_PORT', 5432),
@@ -27,13 +36,9 @@ class Database:
                 password=os.getenv('DB_PASSWORD', 'postgres')
             )
             self.cursor = self.connection.cursor(cursor_factory=RealDictCursor)
-            print("Подключение к БД установлено")
+            logger.info("Подключение к БД установлено")
         except Exception as e:
-            print(f"Ошибка подключения к БД: {e}")
-            print("\nПроверьте:")
-            print("1. Запущен ли PostgreSQL?")
-            print("2. Правильные ли логин и пароль?")
-            print("3. Существует ли база данных 'VKinder'?")
+            logger.error(f"Ошибка подключения к БД: {e}")
             raise
 
     def create_tables(self):
@@ -41,12 +46,13 @@ class Database:
         try:
             self.create_tables_programmatically()
         except Exception as e:
-            print(f"Ошибка создания таблиц: {e}")
+            logger.error(f"Ошибка создания таблиц: {e}")
             self.connection.rollback()
 
     def create_tables_programmatically(self):
         """Создание таблиц"""
         try:
+            # БЛОК ОБНОВЛЕНИЯ ТАБЛИЦ, ПРИ РЕАЛЬНОЙ РАБОТЕ УДАЛИТЬ
             self.cursor.execute('DROP TABLE IF EXISTS favorites CASCADE')
             self.cursor.execute('DROP TABLE IF EXISTS blacklist CASCADE')
             self.cursor.execute('DROP TABLE IF EXISTS viewed_users CASCADE')
@@ -247,16 +253,17 @@ class Database:
             ''')
 
             self.connection.commit()
-            print("Таблицы созданы успешно")
+            logger.info("Таблицы созданы успешно")
 
         except Exception as e:
-            print(f"Ошибка создания таблиц: {e}")
+            logger.error(f"Ошибка создания таблиц: {e}")
             self.connection.rollback()
             raise
 
     def add_user(self, user_data):
         """Добавление или обновление пользователя"""
         try:
+            logger.debug(f"Добавление пользователя: {user_data['user_id']}")
             self.cursor.execute('''
                 INSERT INTO users (user_id, first_name, last_name, sex,
                 age, city_id, city_title)
@@ -278,15 +285,18 @@ class Database:
                 user_data.get('city_title', '')
             ))
             self.connection.commit()
+            logger.info(f"Пользователь {user_data['user_id']} добавлен/обновлен")
             return True
         except Exception as e:
-            print(f"Ошибка добавления пользователя: {e}")
+            logger.error(f"Ошибка добавления пользователя: {e}")
             self.connection.rollback()
             return False
 
     def add_favorite(self, user_id, candidate_data, photos):
         """Добавление пользователя в избранное"""
         try:
+            logger.debug(f"Добавление в избранное: user={user_id}, "
+                         f"candidate={candidate_data['id']}")
             formatted_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             self.cursor.execute('''
                 INSERT INTO favorites
@@ -306,15 +316,18 @@ class Database:
                 formatted_date
             ))
             self.connection.commit()
+            logger.info(f"Пользователь {candidate_data['id']} "
+                        f"добавлен в избранное для {user_id}")
             return True
         except Exception as e:
-            print(f"Ошибка добавления в избранное: {e}")
+            logger.error(f"Ошибка добавления в избранное: {e}")
             self.connection.rollback()
             return False
 
     def get_favorites(self, user_id):
         """Получение списка избранных"""
         try:
+            logger.debug(f"Получение избранных для пользователя: {user_id}")
             self.cursor.execute('''
                 SELECT favorite_id, first_name, last_name, profile_url,
                 photo1, photo2, photo3, added_date
@@ -322,9 +335,11 @@ class Database:
                 WHERE user_id = %s
                 ORDER BY added_date DESC
             ''', (user_id,))
-            return self.cursor.fetchall()
+            result = self.cursor.fetchall()
+            logger.info(f"Получено избранных: {len(result)} для пользователя {user_id}")
+            return result
         except Exception as e:
-            print(f"Ошибка получения избранных: {e}")
+            logger.error(f"Ошибка получения избранных: {e}")
             return []
 
     def is_favorite(self, user_id, candidate_id):
@@ -335,12 +350,17 @@ class Database:
             WHERE user_id = %s AND favorite_id = %s
         ''', (user_id, candidate_id))
         result = self.cursor.fetchone()
-        return result['is_favorite'] if result else False
+        is_fav = result['is_favorite'] if result else False
+        logger.debug(f"Проверка избранного: user={user_id}, "
+                     f"candidate={candidate_id}, result={is_fav}")
+        return is_fav
+
 
     def add_to_blacklist(self, user_id, blacklisted_id, reason=None):
         """Добавление пользователя в черный список"""
         try:
-            from datetime import datetime
+            logger.debug(f"Добавление в черный список: user={user_id}, "
+                         f"blacklisted={blacklisted_id}")
             formatted_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             self.cursor.execute('''
                 INSERT INTO blacklist (user_id, blacklisted_id,
@@ -349,24 +369,29 @@ class Database:
                 ON CONFLICT (user_id, blacklisted_id) DO NOTHING
             ''', (user_id, blacklisted_id, reason, formatted_date))
             self.connection.commit()
+            logger.info(f"Пользователь {blacklisted_id} добавлен в "
+                        f"черный список для {user_id}")
             return True
         except Exception as e:
-            print(f"Ошибка добавления в черный список: {e}")
+            logger.error(f"Ошибка добавления в черный список: {e}")
             self.connection.rollback()
             return False
 
     def get_blacklist(self, user_id):
         """Получение черного списка"""
         try:
+            logger.debug(f"Получение черного списка для пользователя: {user_id}")
             self.cursor.execute('''
                 SELECT blacklisted_id, reason, added_date
                 FROM blacklist
                 WHERE user_id = %s
                 ORDER BY added_date DESC
             ''', (user_id,))
-            return self.cursor.fetchall()
+            result = self.cursor.fetchall()
+            logger.info(f"Получено в черном списке: {len(result)} для пользователя {user_id}")
+            return result
         except Exception as e:
-            print(f"Ошибка получения черного списка: {e}")
+            logger.error(f"Ошибка получения черного списка: {e}")
             return []
 
     def is_blacklisted(self, user_id, candidate_id):
@@ -376,11 +401,15 @@ class Database:
             WHERE user_id = %s AND blacklisted_id = %s
         ''', (user_id, candidate_id))
         result = self.cursor.fetchone()
-        return result['is_blacklisted'] if result else False
+        is_bl = result['is_blacklisted'] if result else False
+        logger.debug(f"Проверка черного списка: user={user_id},"
+                     f"candidate={candidate_id}, result={is_bl}")
+        return is_bl
 
     def add_viewed_user(self, user_id, viewed_id):
         """Добавление просмотренного пользователя"""
         try:
+            logger.debug(f"Добавление просмотренного: user={user_id}, viewed={viewed_id}")
             formatted_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             self.cursor.execute('''
                 INSERT INTO viewed_users (user_id, viewed_id, viewed_date)
@@ -388,24 +417,28 @@ class Database:
                 ON CONFLICT (user_id, viewed_id) DO NOTHING
             ''', (user_id, viewed_id, formatted_date))
             self.connection.commit()
+            logger.info(f"Пользователь {viewed_id} добавлен в просмотренные для {user_id}")
             return True
         except Exception as e:
-            print(f"Ошибка добавления просмотренного: {e}")
+            logger.error(f"Ошибка добавления просмотренного: {e}")
             self.connection.rollback()
             return False
 
     def get_viewed_users(self, user_id):
         """Получение списка просмотренных"""
         try:
+            logger.debug(f"Получение просмотренных для пользователя: {user_id}")
             self.cursor.execute('''
                     SELECT viewed_id
                     FROM viewed_users
                     WHERE user_id = %s
                     ORDER BY viewed_date DESC
                 ''', (user_id,))
-            return [row['viewed_id'] for row in self.cursor.fetchall()]
+            result = [row['viewed_id'] for row in self.cursor.fetchall()]
+            logger.info(f"Получено просмотренных: {len(result)} для пользователя {user_id}")
+            return result
         except Exception as e:
-            print(f"Ошибка получения просмотренных: {e}")
+            logger.error(f"Ошибка получения просмотренных: {e}")
             return []
 
     def close(self):
@@ -414,4 +447,4 @@ class Database:
             self.cursor.close()
         if self.connection:
             self.connection.close()
-            print("Соединение с БД закрыто")
+            logger.error("Соединение с БД закрыто")
