@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+
 class Database:
     """Класс для работы с базой данных PostgreSQL"""
 
@@ -134,16 +135,16 @@ class Database:
             # Внешние ключи
             # favorites
             self.cursor.execute('''
-                DO $$ 
+                DO $$
                 BEGIN
                     IF NOT EXISTS (
-                        SELECT 1 
-                        FROM information_schema.table_constraints 
+                        SELECT 1
+                        FROM information_schema.table_constraints
                         WHERE constraint_name = 'fk_favorites_user') THEN
-                        ALTER TABLE favorites 
-                        ADD CONSTRAINT fk_favorites_user 
-                        FOREIGN KEY (user_id) 
-                        REFERENCES users(user_id) 
+                        ALTER TABLE favorites
+                        ADD CONSTRAINT fk_favorites_user
+                        FOREIGN KEY (user_id)
+                        REFERENCES users(user_id)
                         ON DELETE CASCADE;
                     END IF;
                 END $$;
@@ -151,16 +152,16 @@ class Database:
 
             # blacklist
             self.cursor.execute('''
-                DO $$ 
+                DO $$
                 BEGIN
                     IF NOT EXISTS (
-                        SELECT 1 
-                        FROM information_schema.table_constraints 
+                        SELECT 1
+                        FROM information_schema.table_constraints
                         WHERE constraint_name = 'fk_blacklist_user') THEN
-                        ALTER TABLE blacklist 
-                        ADD CONSTRAINT fk_blacklist_user 
-                        FOREIGN KEY (user_id) 
-                        REFERENCES users(user_id) 
+                        ALTER TABLE blacklist
+                        ADD CONSTRAINT fk_blacklist_user
+                        FOREIGN KEY (user_id)
+                        REFERENCES users(user_id)
                         ON DELETE CASCADE;
                     END IF;
                 END $$;
@@ -168,16 +169,16 @@ class Database:
 
             # viewed_users
             self.cursor.execute('''
-                DO $$ 
+                DO $$
                 BEGIN
                     IF NOT EXISTS (
-                        SELECT 1 
-                        FROM information_schema.table_constraints 
+                        SELECT 1
+                        FROM information_schema.table_constraints
                         WHERE constraint_name = 'fk_viewed_user') THEN
-                        ALTER TABLE viewed_users 
-                        ADD CONSTRAINT fk_viewed_user 
-                        FOREIGN KEY (user_id) 
-                        REFERENCES users(user_id) 
+                        ALTER TABLE viewed_users
+                        ADD CONSTRAINT fk_viewed_user
+                        FOREIGN KEY (user_id)
+                        REFERENCES users(user_id)
                         ON DELETE CASCADE;
                     END IF;
                 END $$;
@@ -185,17 +186,17 @@ class Database:
 
             # photo_likes
             self.cursor.execute('''
-             DO $$ 
+             DO $$
                 BEGIN
                     IF NOT EXISTS (
-                        SELECT 1 
-                        FROM information_schema.table_constraints 
+                        SELECT 1
+                        FROM information_schema.table_constraints
                         WHERE constraint_name = 'fk_photo_likes_user'
                     ) THEN
-                        ALTER TABLE photo_likes 
-                        ADD CONSTRAINT fk_photo_likes_user 
-                        FOREIGN KEY (user_id) 
-                        REFERENCES users(user_id) 
+                        ALTER TABLE photo_likes
+                        ADD CONSTRAINT fk_photo_likes_user
+                        FOREIGN KEY (user_id)
+                        REFERENCES users(user_id)
                         ON DELETE CASCADE;
                     END IF;
                 END $$;
@@ -203,17 +204,17 @@ class Database:
 
             # interests
             self.cursor.execute('''
-                DO $$ 
+                DO $$
                 BEGIN
                     IF NOT EXISTS (
-                        SELECT 1 
-                        FROM information_schema.table_constraints 
+                        SELECT 1
+                        FROM information_schema.table_constraints
                         WHERE constraint_name = 'fk_interests_user'
                     ) THEN
-                        ALTER TABLE interests 
-                        ADD CONSTRAINT fk_interests_user 
-                        FOREIGN KEY (user_id) 
-                        REFERENCES users(user_id) 
+                        ALTER TABLE interests
+                        ADD CONSTRAINT fk_interests_user
+                        FOREIGN KEY (user_id)
+                        REFERENCES users(user_id)
                         ON DELETE CASCADE;
                     END IF;
                 END $$;
@@ -221,27 +222,27 @@ class Database:
 
             # Индексы
             self.cursor.execute('''
-                CREATE INDEX IF NOT EXISTS idx_favorites_user_id 
+                CREATE INDEX IF NOT EXISTS idx_favorites_user_id
                 ON favorites(user_id)
             ''')
 
             self.cursor.execute('''
-                CREATE INDEX IF NOT EXISTS idx_blacklist_user_id 
+                CREATE INDEX IF NOT EXISTS idx_blacklist_user_id
                 ON blacklist(user_id)
             ''')
 
             self.cursor.execute('''
-                CREATE INDEX IF NOT EXISTS idx_viewed_user_id 
+                CREATE INDEX IF NOT EXISTS idx_viewed_user_id
                 ON viewed_users(user_id)
             ''')
 
             self.cursor.execute('''
-                CREATE INDEX IF NOT EXISTS idx_photo_likes_user 
+                CREATE INDEX IF NOT EXISTS idx_photo_likes_user
                 ON photo_likes(user_id)
             ''')
 
             self.cursor.execute('''
-                CREATE INDEX IF NOT EXISTS idx_interests_user 
+                CREATE INDEX IF NOT EXISTS idx_interests_user
                 ON interests(user_id)
             ''')
 
@@ -257,7 +258,8 @@ class Database:
         """Добавление или обновление пользователя"""
         try:
             self.cursor.execute('''
-                INSERT INTO users (user_id, first_name, last_name, sex, age, city_id, city_title)
+                INSERT INTO users (user_id, first_name, last_name, sex,
+                age, city_id, city_title)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (user_id) DO UPDATE SET
                     first_name = EXCLUDED.first_name,
@@ -287,8 +289,9 @@ class Database:
         try:
             formatted_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             self.cursor.execute('''
-                INSERT INTO favorites 
-                (user_id, favorite_id, first_name, last_name, profile_url, photo1, photo2, photo3, added_date)
+                INSERT INTO favorites
+                (user_id, favorite_id, first_name, last_name,
+                profile_url, photo1, photo2, photo3, added_date)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (user_id, favorite_id) DO NOTHING
             ''', (
@@ -313,7 +316,7 @@ class Database:
         """Получение списка избранных"""
         try:
             self.cursor.execute('''
-                SELECT favorite_id, first_name, last_name, profile_url, 
+                SELECT favorite_id, first_name, last_name, profile_url,
                 photo1, photo2, photo3, added_date
                 FROM favorites
                 WHERE user_id = %s
@@ -340,7 +343,8 @@ class Database:
             from datetime import datetime
             formatted_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             self.cursor.execute('''
-                INSERT INTO blacklist (user_id, blacklisted_id, reason, added_date)
+                INSERT INTO blacklist (user_id, blacklisted_id,
+                reason, added_date)
                 VALUES (%s, %s, %s, %s)
                 ON CONFLICT (user_id, blacklisted_id) DO NOTHING
             ''', (user_id, blacklisted_id, reason, formatted_date))
