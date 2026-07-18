@@ -3,4 +3,4 @@ config_local.p
 .env
 .idea/
 __pycache__/
-
+*.log
