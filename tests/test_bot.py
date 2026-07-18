@@ -14,12 +14,11 @@ import json
 import pytest
 from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime
+from vk_api.longpoll import VkEventType
 
 # Добавляем путь к корневой папке проекта
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Импортируем VkEventType для тестов
-from vk_api.longpoll import VkEventType
 from bot.vk_bot import (
     write_msg,
     send_candidate,
@@ -35,10 +34,6 @@ from bot.vk_bot import (
     vk
 )
 
-
-# ============================================================
-# ФИКСТУРЫ
-# ============================================================
 
 @pytest.fixture
 def mock_vk():
@@ -100,10 +95,6 @@ def sample_photos():
         {'attachment': 'photo123_458', 'likes': 5}
     ]
 
-
-# ============================================================
-# ТЕСТЫ ДЛЯ ФУНКЦИИ write_msg
-# ============================================================
 
 def test_write_msg_without_attachment(mock_vk):
     """
@@ -170,11 +161,13 @@ def test_write_msg_with_attachment(mock_vk):
     assert call_args['attachment'] == attachment
 
 
-# ============================================================
-# ТЕСТЫ ДЛЯ ФУНКЦИИ send_candidate
-# ============================================================
-
-def test_send_candidate_success(mock_vk, mock_vk_client, mock_db, sample_candidate, sample_photos):
+def test_send_candidate_success(
+    mock_vk,
+    mock_vk_client,
+    mock_db,
+    sample_candidate,
+    sample_photos
+):
     """
     Тест успешной отправки кандидата.
     """
@@ -188,12 +181,21 @@ def test_send_candidate_success(mock_vk, mock_vk_client, mock_db, sample_candida
     send_candidate(user_id, sample_candidate, state)
 
     # Assert
-    mock_vk_client.get_top_3_photos.assert_called_once_with(sample_candidate['id'])
-    mock_db.add_viewed_user.assert_called_once_with(user_id, sample_candidate['id'])
+    mock_vk_client.get_top_3_photos.assert_called_once_with(
+        sample_candidate['id']
+    )
+    mock_db.add_viewed_user.assert_called_once_with(
+        user_id, sample_candidate['id']
+    )
     assert state['current_index'] == 1
 
 
-def test_send_candidate_without_photos(mock_vk, mock_vk_client, mock_db, sample_candidate):
+def test_send_candidate_without_photos(
+    mock_vk,
+    mock_vk_client,
+    mock_db,
+    sample_candidate
+):
     """
     Тест отправки кандидата без фотографий.
     """
@@ -207,11 +209,19 @@ def test_send_candidate_without_photos(mock_vk, mock_vk_client, mock_db, sample_
 
     # Assert
     mock_vk_client.get_top_3_photos.assert_called_once()
-    mock_db.add_viewed_user.assert_called_once_with(user_id, sample_candidate['id'])
+    mock_db.add_viewed_user.assert_called_once_with(
+        user_id, sample_candidate['id']
+    )
     assert state['current_index'] == 1
 
 
-def test_send_candidate_message_format(mock_vk, mock_vk_client, mock_db, sample_candidate, sample_photos):
+def test_send_candidate_message_format(
+    mock_vk,
+    mock_vk_client,
+    mock_db,
+    sample_candidate,
+    sample_photos
+):
     """
     Тест формата сообщения с кандидатом.
     """
@@ -234,11 +244,12 @@ def test_send_candidate_message_format(mock_vk, mock_vk_client, mock_db, sample_
         assert f"Возраст: {sample_candidate['age']}" in message
 
 
-# ============================================================
-# ТЕСТЫ ДЛЯ ФУНКЦИИ add_to_favorites
-# ============================================================
-
-def test_add_to_favorites_success(mock_db, mock_vk_client, sample_candidate, sample_photos):
+def test_add_to_favorites_success(
+    mock_db,
+    mock_vk_client,
+    sample_candidate,
+    sample_photos
+):
     """
     Тест успешного добавления в избранное.
     """
@@ -257,8 +268,12 @@ def test_add_to_favorites_success(mock_db, mock_vk_client, sample_candidate, sam
         add_to_favorites(user_id, state)
 
         # Assert
-        mock_db.is_favorite.assert_called_once_with(user_id, sample_candidate['id'])
-        mock_vk_client.get_top_3_photos.assert_called_once_with(sample_candidate['id'])
+        mock_db.is_favorite.assert_called_once_with(
+            user_id, sample_candidate['id']
+        )
+        mock_vk_client.get_top_3_photos.assert_called_once_with(
+            sample_candidate['id']
+        )
         mock_db.add_favorite.assert_called_once()
         mock_write_msg.assert_called_once()
         assert "добавлен в избранное" in mock_write_msg.call_args[0][1]
@@ -308,10 +323,6 @@ def test_add_to_favorites_no_candidate(mock_db):
         assert "Нет текущего кандидата" in mock_write_msg.call_args[0][1]
 
 
-# ============================================================
-# ТЕСТЫ ДЛЯ ФУНКЦИИ add_to_blacklist
-# ============================================================
-
 def test_add_to_blacklist_success(mock_db, sample_candidate):
     """
     Тест успешного добавления в черный список.
@@ -330,7 +341,9 @@ def test_add_to_blacklist_success(mock_db, sample_candidate):
         add_to_blacklist(user_id, state)
 
         # Assert
-        mock_db.is_blacklisted.assert_called_once_with(user_id, sample_candidate['id'])
+        mock_db.is_blacklisted.assert_called_once_with(
+            user_id, sample_candidate['id']
+        )
         mock_db.add_to_blacklist.assert_called_once()
         mock_write_msg.assert_called_once()
         assert "добавлен в черный список" in mock_write_msg.call_args[0][1]
@@ -359,10 +372,6 @@ def test_add_to_blacklist_already_exists(mock_db, sample_candidate):
         mock_write_msg.assert_called_once()
         assert "уже в черном списке" in mock_write_msg.call_args[0][1]
 
-
-# ============================================================
-# ТЕСТЫ ДЛЯ ФУНКЦИИ show_favorites
-# ============================================================
 
 def test_show_favorites_success(mock_db):
     """
@@ -412,10 +421,6 @@ def test_show_favorites_empty(mock_db):
         assert "Избранных пока нет" in mock_write_msg.call_args[0][1]
 
 
-# ============================================================
-# ТЕСТЫ ДЛЯ ФУНКЦИИ show_blacklist
-# ============================================================
-
 def test_show_blacklist_success(mock_db):
     """
     Тест успешного отображения черного списка.
@@ -461,11 +466,11 @@ def test_show_blacklist_empty(mock_db):
         assert "Черный список пуст" in mock_write_msg.call_args[0][1]
 
 
-# ============================================================
-# ТЕСТЫ ДЛЯ ФУНКЦИИ start_search
-# ============================================================
-
-def test_start_search_success(mock_db, mock_vk_client, sample_candidate):
+def test_start_search_success(
+    mock_db,
+    mock_vk_client,
+    sample_candidate
+):
     """
     Тест успешного начала поиска.
     """
@@ -489,7 +494,9 @@ def test_start_search_success(mock_db, mock_vk_client, sample_candidate):
         mock_db.get_viewed_users.assert_called_once_with(user_id)
         mock_vk_client.find_partners_for_user.assert_called_once()
         assert len(user_states[user_id]['candidates']) == 1
-        mock_send_candidate.assert_called_once_with(user_id, sample_candidate, user_states[user_id])
+        mock_send_candidate.assert_called_once_with(
+            user_id, sample_candidate, user_states[user_id]
+        )
 
 
 def test_start_search_no_candidates(mock_db, mock_vk_client):
@@ -533,10 +540,6 @@ def test_start_search_user_not_initialized():
         mock_write_msg.assert_called_once()
         assert "start" in mock_write_msg.call_args[0][1]
 
-
-# ============================================================
-# ТЕСТ ДЛЯ start_bot (обработка команды "привет")
-# ============================================================
 
 def test_start_bot_hello_command(mock_db, mock_vk_client, sample_user):
     """

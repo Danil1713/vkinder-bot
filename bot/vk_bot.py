@@ -62,7 +62,9 @@ def send_candidate(user_id, candidate, state):
     Добавляет кандидата в просмотренные.
     """
     try:
-        logger.info(f"Отправка кандидата {candidate.get('id')} пользователю {user_id}")
+        logger.info(
+            f"Отправка кандидата {candidate.get('id')} пользователю {user_id}"
+        )
 
         photos = vk_client.get_top_3_photos(candidate['id'])
         logger.debug(f"Получено {len(photos)} фото для кандидата")
@@ -73,25 +75,31 @@ def send_candidate(user_id, candidate, state):
         if candidate.get('age'):
             message += f"Возраст: {candidate['age']}\n"
 
-        attachment = ','.join([p['attachment'] for p in photos]) if photos else ''
+        attachment = ','.join([p['attachment'] for p in photos])\
+            if photos else ''
 
         keyboard = {
             "one_time": False,
             "buttons": [
                 [
-                    {"action": {"type": "text", "label": "Дальше"},
+                    {"action": {"type": "text",
+                                "label": "Дальше"},
                      "color": "primary"}
                 ],
                 [
-                    {"action": {"type": "text", "label": "В избранное"},
+                    {"action": {"type": "text",
+                                "label": "В избранное"},
                      "color": "positive"},
-                    {"action": {"type": "text", "label": "В черный список"},
+                    {"action": {"type": "text",
+                                "label": "В черный список"},
                      "color": "negative"}
                 ],
                 [
-                    {"action": {"type": "text", "label": "Показать избранное"},
+                    {"action": {"type": "text",
+                                "label": "Показать избранное"},
                      "color": "secondary"},
-                    {"action": {"type": "text", "label": "Показать черный список"},
+                    {"action": {"type": "text",
+                                "label": "Показать черный список"},
                      "color": "secondary"}
                 ]
             ]
@@ -114,7 +122,10 @@ def add_to_favorites(user_id, state):
     current_index = state['current_index'] - 1
 
     if current_index < 0 or not state['candidates']:
-        logger.warning(f"Пользователь {user_id} попытался добавить в избранное без кандидата")
+        logger.warning(
+            f"Пользователь {user_id} попытался"
+            f"добавить в избранное без кандидата"
+        )
         write_msg(user_id, "Нет текущего кандидата для добавления.")
         return
 
@@ -143,7 +154,7 @@ def add_to_favorites(user_id, state):
             logger.info(f"Кандидат {candidate['id']} добавлен в избранное")
             write_msg(user_id, f"{candidate_name} добавлен в избранное!")
         else:
-            logger.error(f"Ошибка добавления в избранное")
+            logger.error("Ошибка добавления в избранное")
             write_msg(user_id, "Ошибка при добавлении в избранное.")
     except Exception as e:
         logger.error(f"Ошибка сохранения в избранное: {e}")
@@ -157,7 +168,10 @@ def add_to_blacklist(user_id, state):
     current_index = state['current_index'] - 1
 
     if current_index < 0 or not state['candidates']:
-        logger.warning(f"Пользователь {user_id} попытался добавить в черный список без кандидата")
+        logger.warning(
+            f"Пользователь {user_id} попытался"
+            f"добавить в черный список без кандидата"
+        )
         write_msg(user_id, "Нет текущего кандидата.")
         return
 
@@ -175,12 +189,15 @@ def add_to_blacklist(user_id, state):
         return
 
     try:
-        if db.add_to_blacklist(user_id, candidate['id'], "Добавлен пользователем"):
+        if db.add_to_blacklist(
+                user_id,
+                candidate['id'],
+                "Добавлен пользователем"):
             logger.info(f"Кандидат {candidate['id']} добавлен в черный список")
             write_msg(user_id, f"{candidate_name} добавлен в черный список.\n")
             state['current_index'] += 1
         else:
-            logger.error(f"Ошибка добавления в черный список")
+            logger.error("Ошибка добавления в черный список")
             write_msg(user_id, "Ошибка при добавлении в черный список.")
     except Exception as e:
         logger.error(f"Ошибка сохранения в черный список: {e}")
@@ -277,7 +294,10 @@ def start_search(user_id):
         blacklist = db.get_blacklist(user_id)
         blacklist_id = [item['blacklisted_id'] for item in blacklist]
         viewed_users = db.get_viewed_users(user_id)
-        logger.debug(f"Черный список: {len(blacklist_id)}, просмотренных: {len(viewed_users)}")
+        logger.debug(
+            f"Черный список: {len(blacklist_id)},"
+            f"просмотренных: {len(viewed_users)}"
+        )
     except Exception as e:
         logger.error(f"Ошибка получения списков: {e}")
         write_msg(user_id, "Ошибка при получении данных.")
@@ -297,7 +317,7 @@ def start_search(user_id):
         return
 
     if not candidates:
-        logger.info(f"Кандидаты не найдены")
+        logger.info("Кандидаты не найдены")
         write_msg(user_id, "Не найдено кандидатов по твоим критериям.")
         return
 
@@ -331,12 +351,16 @@ def start_bot():
                     logger.info(f"Данные пользователя: {user_info}")
 
                     if not user_info:
-                        logger.warning(f"Не удалось получить информацию о пользователе {user_id}")
+                        logger.warning(
+                            f"Не удалось получить информацию о пользователе"
+                            f"{user_id}"
+                        )
                         keyboard = {
                             "one_time": False,
                             "buttons": [
                                 [
-                                    {"action": {"type": "text", "label": "start"},
+                                    {"action": {"type": "text",
+                                                "label": "start"},
                                      "color": "primary"}
                                 ]
                             ]
@@ -344,7 +368,8 @@ def start_bot():
                         write_msg(
                             user_id,
                             "Не удалось получить информацию. "
-                            "Проверь настройки приватности и снова нажми кнопку "
+                            "Проверь настройки приватности"
+                            " и снова нажми кнопку"
                             "'start'",
                             keyboard=keyboard
                         )
@@ -391,12 +416,15 @@ def start_bot():
 
                 elif text == "дальше":
                     if user_id not in user_states:
-                        logger.warning(f"Пользователь {user_id} не инициализирован")
+                        logger.warning(
+                            f"Пользователь {user_id} не инициализирован"
+                        )
                         keyboard = {
                             "one_time": False,
                             "buttons": [
                                 [
-                                    {"action": {"type": "text", "label": "start"},
+                                    {"action": {"type": "text",
+                                                "label": "start"},
                                      "color": "primary"}
                                 ]
                             ]
@@ -413,7 +441,9 @@ def start_bot():
                     index = state['current_index']
 
                     if not candidates or index >= len(candidates):
-                        logger.info(f"У пользователя {user_id} закончились кандидаты")
+                        logger.info(
+                            f"У пользователя {user_id} закончились кандидаты"
+                        )
                         keyboard = {
                             "one_time": False,
                             "buttons": [
@@ -436,7 +466,9 @@ def start_bot():
 
                 elif text == "в избранное":
                     if user_id not in user_states:
-                        logger.warning(f"Пользователь {user_id} не инициализирован")
+                        logger.warning(
+                            f"Пользователь {user_id} не инициализирован"
+                        )
                         keyboard = {
                             "one_time": False,
                             "buttons": [
@@ -459,7 +491,9 @@ def start_bot():
 
                 elif text == "в черный список":
                     if user_id not in user_states:
-                        logger.warning(f"Пользователь {user_id} не инициализирован")
+                        logger.warning(
+                            f"Пользователь {user_id} не инициализирован"
+                        )
                         keyboard = {
                             "one_time": False,
                             "buttons": [
@@ -503,7 +537,6 @@ def start_bot():
                                 {"action": {"type": "text",
                                             "label": "В черный список"},
                                  "color": "negative"}
-
                             ],
                             [
                                 {"action": {"type": "text",
@@ -525,6 +558,6 @@ def start_bot():
             logger.error(f"Критическая ошибка: {e}", exc_info=True)
             try:
                 write_msg(user_id, "Произошла ошибка. Попробуйте снова.")
-            except:
-                pass
-
+            except Exception:
+                # Логируем ошибку отправки сообщения об ошибке
+                logger.error("Не удалось отправить сообщение об ошибке")
